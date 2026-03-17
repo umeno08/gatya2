@@ -2,21 +2,21 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル（高速＆集結）</title>
+<title>ラストウォー風サバイバル（調整版）</title>
 <style>
 body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:center; }
 #game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
 .player,.ally{ width:20px;height:20px;position:absolute; }
-.player{ background:lime; }
+.player{ background:lime; z-index:2; }
 .ally{ background:cyan; }
 .enemy{ width:20px;height:20px;background:red;position:absolute;color:white;font-size:10px;text-align:center; }
 .boss{ background:purple; }
 .bullet{ width:4px;height:8px;background:yellow;position:absolute; }
-.bar{ width:60px;height:20px;background:orange;position:absolute;color:black;font-size:12px;line-height:20px; }
+.bar{ width:70px;height:25px;background:orange;position:absolute;color:black;font-size:14px;line-height:25px; z-index:3; }
 </style>
 </head>
 <body>
-<h1>ラストウォー風サバイバル（高速化）</h1>
+<h1>ラストウォー風サバイバル（調整）</h1>
 <div id="game"></div>
 <div>HP:<span id="hp">100</span> スコア:<span id="score">0</span> 味方:<span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
@@ -35,9 +35,9 @@ function startGame(){
  updateUI();
  document.onkeydown=move;
  loopId=setInterval(loop,30);
- spawnId=setInterval(spawnEnemy,300); // 敵増加
+ spawnId=setInterval(spawnEnemy,700); // 敵減少
  shootId=setInterval(autoShoot,200);
- barId=setInterval(spawnBar,4000); // バー減少
+ barId=setInterval(spawnBar,3500);
 }
 
 function create(cls,x,y,text=""){
@@ -57,7 +57,7 @@ function move(e){
  x=Math.max(0,Math.min(380,x));
  player.style.left=x+"px";
 
- // 味方を周囲に集結（円形配置）
+ // 味方を周囲に配置
  let radius=30;
  allies.forEach((a,i)=>{
  if(a===player) return;
@@ -74,7 +74,7 @@ function autoShoot(){
 }
 
 function spawnEnemy(){
- let count=4+Math.floor(score/30);
+ let count=2+Math.floor(score/100); // 敵減少
  for(let i=0;i<count;i++){
  let isBoss=Math.random()<0.2;
  let hpVal=isBoss?20:5;
@@ -88,7 +88,7 @@ function spawnEnemy(){
 function spawnBar(){
  let types=["×2","×3","×5","+5","+10"];
  let v=types[Math.floor(Math.random()*types.length)];
- let bar=create("bar",Math.random()*340,0,v);
+ let bar=create("bar",Math.random()*330,0,v);
  bar.type=v;
  bars.push(bar);
 }
@@ -112,8 +112,14 @@ function loop(){
  });
  });
 
+ // 敵がプレイヤーに向かってくる
  enemies.forEach((e,ei)=>{
- e.style.top=(e.offsetTop+6)+"px"; // 高速化
+ let dx = player.offsetLeft - e.offsetLeft;
+ if(Math.abs(dx)>2){
+ e.style.left = (e.offsetLeft + Math.sign(dx)*2)+"px";
+ }
+ e.style.top=(e.offsetTop+4)+"px";
+
  if(hit(e,player)){
  hp-=10;
  remove(e);
@@ -123,9 +129,10 @@ function loop(){
  }
  });
 
+ // バー当たり判定改善（大きめ＆確実）
  bars.forEach((bar,bi)=>{
  bar.style.top=(bar.offsetTop+3)+"px";
- if(hit(bar,player)){
+ if(hitWide(bar,player)){
  applyBar(bar.type);
  remove(bar);
  bars.splice(bi,1);
@@ -139,8 +146,7 @@ function applyBar(type){
  let current=[...allies];
  current.forEach(a=>{
  for(let i=0;i<mult-1;i++){
- let nx=Math.random()*380;
- allies.push(create("ally",nx,a.offsetTop));
+ allies.push(create("ally",Math.random()*380,a.offsetTop));
  }
  });
  } else {
@@ -154,6 +160,11 @@ function applyBar(type){
 
 function hit(a,b){
  return !(a.offsetTop>b.offsetTop+20||a.offsetTop+8<b.offsetTop||a.offsetLeft>b.offsetLeft+20||a.offsetLeft+4<b.offsetLeft);
+}
+
+// 当たり判定を広げる（バー用）
+function hitWide(a,b){
+ return !(a.offsetTop>b.offsetTop+40||a.offsetTop+25<b.offsetTop||a.offsetLeft>b.offsetLeft+40||a.offsetLeft+25<b.offsetLeft);
 }
 
 function remove(el){if(el&&el.parentNode)el.parentNode.removeChild(el);} 
@@ -174,3 +185,4 @@ function end(){
 </script>
 </body>
 </html>
+
