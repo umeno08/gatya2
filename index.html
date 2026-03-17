@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル（調整版）</title>
+<title>ラストウォー風サバイバル（分離調整）</title>
 <style>
 body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:center; }
 #game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
@@ -16,7 +16,7 @@ body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:cent
 </style>
 </head>
 <body>
-<h1>ラストウォー風サバイバル（調整）</h1>
+<h1>ラストウォー風サバイバル（分離）</h1>
 <div id="game"></div>
 <div>HP:<span id="hp">100</span> スコア:<span id="score">0</span> 味方:<span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
@@ -35,7 +35,7 @@ function startGame(){
  updateUI();
  document.onkeydown=move;
  loopId=setInterval(loop,30);
- spawnId=setInterval(spawnEnemy,700); // 敵減少
+ spawnId=setInterval(spawnEnemy,800);
  shootId=setInterval(autoShoot,200);
  barId=setInterval(spawnBar,3500);
 }
@@ -57,7 +57,6 @@ function move(e){
  x=Math.max(0,Math.min(380,x));
  player.style.left=x+"px";
 
- // 味方を周囲に配置
  let radius=30;
  allies.forEach((a,i)=>{
  if(a===player) return;
@@ -73,11 +72,12 @@ function autoShoot(){
  });
 }
 
+// 敵は上半分から出現
 function spawnEnemy(){
- let count=2+Math.floor(score/100); // 敵減少
+ let count=2+Math.floor(score/120);
  for(let i=0;i<count;i++){
  let isBoss=Math.random()<0.2;
- let hpVal=isBoss?20:5;
+ let hpVal=isBoss?30:10; // HP増加
  let cls=isBoss?"enemy boss":"enemy";
  let e=create(cls,Math.random()*380,0,hpVal);
  e.hp=hpVal;
@@ -85,10 +85,12 @@ function spawnEnemy(){
  }
 }
 
+// バーは中央〜下から出現
 function spawnBar(){
  let types=["×2","×3","×5","+5","+10"];
  let v=types[Math.floor(Math.random()*types.length)];
- let bar=create("bar",Math.random()*330,0,v);
+ let y = 150 + Math.random()*200; // 出現位置分離
+ let bar=create("bar",Math.random()*330,y,v);
  bar.type=v;
  bars.push(bar);
 }
@@ -112,13 +114,12 @@ function loop(){
  });
  });
 
- // 敵がプレイヤーに向かってくる
  enemies.forEach((e,ei)=>{
  let dx = player.offsetLeft - e.offsetLeft;
  if(Math.abs(dx)>2){
- e.style.left = (e.offsetLeft + Math.sign(dx)*2)+"px";
+ e.style.left = (e.offsetLeft + Math.sign(dx)*1.5)+"px"; // 遅く
  }
- e.style.top=(e.offsetTop+4)+"px";
+ e.style.top=(e.offsetTop+2.5)+"px"; // 遅く
 
  if(hit(e,player)){
  hp-=10;
@@ -129,9 +130,8 @@ function loop(){
  }
  });
 
- // バー当たり判定改善（大きめ＆確実）
  bars.forEach((bar,bi)=>{
- bar.style.top=(bar.offsetTop+3)+"px";
+ bar.style.top=(bar.offsetTop+2)+"px";
  if(hitWide(bar,player)){
  applyBar(bar.type);
  remove(bar);
@@ -162,7 +162,6 @@ function hit(a,b){
  return !(a.offsetTop>b.offsetTop+20||a.offsetTop+8<b.offsetTop||a.offsetLeft>b.offsetLeft+20||a.offsetLeft+4<b.offsetLeft);
 }
 
-// 当たり判定を広げる（バー用）
 function hitWide(a,b){
  return !(a.offsetTop>b.offsetTop+40||a.offsetTop+25<b.offsetTop||a.offsetLeft>b.offsetLeft+40||a.offsetLeft+25<b.offsetLeft);
 }
@@ -185,4 +184,3 @@ function end(){
 </script>
 </body>
 </html>
-
