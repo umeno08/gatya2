@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル（分離調整）</title>
+<title>ラストウォー風サバイバル（最終バランス）</title>
 <style>
 body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:center; }
 #game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
@@ -13,10 +13,11 @@ body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:cent
 .boss{ background:purple; }
 .bullet{ width:4px;height:8px;background:yellow;position:absolute; }
 .bar{ width:70px;height:25px;background:orange;position:absolute;color:black;font-size:14px;line-height:25px; z-index:3; }
+.heal{ background:green; color:white; }
 </style>
 </head>
 <body>
-<h1>ラストウォー風サバイバル（分離）</h1>
+<h1>ラストウォー風サバイバル（完成版）</h1>
 <div id="game"></div>
 <div>HP:<span id="hp">100</span> スコア:<span id="score">0</span> 味方:<span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
@@ -25,11 +26,13 @@ body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:cent
 const game=document.getElementById("game");
 let player,hp,score,enemies=[],bullets=[],allies=[],bars=[];
 let loopId,spawnId,shootId,barId;
+let difficulty=1;
+let bossSpawned=false;
 
 function startGame(){
  game.innerHTML="";
  enemies=[];bullets=[];allies=[];bars=[];
- hp=100;score=0;
+ hp=100;score=0;difficulty=1;bossSpawned=false;
  player=create("player",190,460);
  allies.push(player);
  updateUI();
@@ -37,7 +40,7 @@ function startGame(){
  loopId=setInterval(loop,30);
  spawnId=setInterval(spawnEnemy,800);
  shootId=setInterval(autoShoot,200);
- barId=setInterval(spawnBar,3500);
+ barId=setInterval(spawnBar,3000);
 }
 
 function create(cls,x,y,text=""){
@@ -72,25 +75,34 @@ function autoShoot(){
  });
 }
 
-// 敵は上半分から出現
 function spawnEnemy(){
- let count=2+Math.floor(score/120);
+ if(score > 300 && !bossSpawned){
+   spawnBoss();
+   bossSpawned=true;
+   return;
+ }
+ let count=2;
  for(let i=0;i<count;i++){
- let isBoss=Math.random()<0.2;
- let hpVal=isBoss?30:10; // HP増加
- let cls=isBoss?"enemy boss":"enemy";
- let e=create(cls,Math.random()*380,0,hpVal);
+ let hpVal = 5 + Math.floor(difficulty);
+ let e=create("enemy",Math.random()*380,0,hpVal);
  e.hp=hpVal;
  enemies.push(e);
  }
+ difficulty += 0.2; // 徐々に強く
 }
 
-// バーは中央〜下から出現
+function spawnBoss(){
+ let e=create("enemy boss",150,0,100);
+ e.hp=100;
+ enemies.push(e);
+}
+
 function spawnBar(){
- let types=["×2","×3","×5","+5","+10"];
+ let types=["+1","+2","+3","+5","heal"];
  let v=types[Math.floor(Math.random()*types.length)];
- let y = 150 + Math.random()*200; // 出現位置分離
- let bar=create("bar",Math.random()*330,y,v);
+ let y = 150 + Math.random()*200;
+ let cls = v==="heal" ? "bar heal" : "bar";
+ let bar=create(cls,Math.random()*330,y,v);
  bar.type=v;
  bars.push(bar);
 }
@@ -117,9 +129,9 @@ function loop(){
  enemies.forEach((e,ei)=>{
  let dx = player.offsetLeft - e.offsetLeft;
  if(Math.abs(dx)>2){
- e.style.left = (e.offsetLeft + Math.sign(dx)*1.5)+"px"; // 遅く
+ e.style.left = (e.offsetLeft + Math.sign(dx)*1.5)+"px";
  }
- e.style.top=(e.offsetTop+2.5)+"px"; // 遅く
+ e.style.top=(e.offsetTop+2.5)+"px";
 
  if(hit(e,player)){
  hp-=10;
@@ -141,14 +153,8 @@ function loop(){
 }
 
 function applyBar(type){
- if(type.includes("×")){
- let mult=parseInt(type.replace("×",""));
- let current=[...allies];
- current.forEach(a=>{
- for(let i=0;i<mult-1;i++){
- allies.push(create("ally",Math.random()*380,a.offsetTop));
- }
- });
+ if(type === "heal"){
+ hp = Math.min(100, hp + 20);
  } else {
  let add=parseInt(type.replace("+",""));
  for(let i=0;i<add;i++){
