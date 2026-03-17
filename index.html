@@ -2,167 +2,136 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル</title>
+<title>ラストウォー風サバイバル（改良版）</title>
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #111;
-  color: white;
-  text-align: center;
-}
-
-#game {
-  width: 400px;
-  height: 400px;
-  margin: 20px auto;
-  background: #222;
-  position: relative;
-  border: 2px solid white;
-}
-
-.player {
-  width: 20px;
-  height: 20px;
-  background: lime;
-  position: absolute;
-}
-
-.enemy {
-  width: 20px;
-  height: 20px;
-  background: red;
-  position: absolute;
-}
-
-.bullet {
-  width: 5px;
-  height: 5px;
-  background: yellow;
-  position: absolute;
-}
-
-#info {
-  margin-top: 10px;
-}
-
-button {
-  padding: 10px;
-  font-size: 16px;
-  margin-top: 10px;
-}
+body { margin:0; font-family:Arial, sans-serif; background:#111; color:#fff; text-align:center; }
+#game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
+.player, .ally { width:20px; height:20px; position:absolute; }
+.player { background:lime; }
+.ally { background:cyan; }
+.enemy { width:20px; height:20px; background:red; position:absolute; }
+.bullet { width:4px; height:8px; background:yellow; position:absolute; }
+#info { margin-top:10px; }
+button { padding:10px; font-size:16px; margin-top:10px; }
 </style>
 </head>
 <body>
-
-<h1>ラストウォー風サバイバル</h1>
+<h1>ラストウォー風サバイバル（改良）</h1>
 <div id="game"></div>
-<div id="info">HP: <span id="hp">100</span> | スコア: <span id="score">0</span></div>
+<div id="info">HP: <span id="hp">100</span> | スコア: <span id="score">0</span> | 味方: <span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
 
 <script>
 const game = document.getElementById("game");
-let player, hp, score, enemies = [], bullets = [], gameLoop;
+let player, hp, score, enemies=[], bullets=[], allies=[];
+let loopId, spawnId, shootId;
 
-function startGame() {
-  game.innerHTML = "";
-  enemies = [];
-  bullets = [];
-  hp = 100;
-  score = 0;
+function startGame(){
+  game.innerHTML="";
+  enemies=[]; bullets=[]; allies=[];
+  hp=100; score=0;
+  player = create("player",190,460);
+  allies.push(player);
   updateUI();
 
-  player = createDiv("player", 190, 190);
-
-  document.onkeydown = movePlayer;
-
-  gameLoop = setInterval(loop, 50);
-  setInterval(spawnEnemy, 1000);
+  document.onkeydown = move;
+  loopId = setInterval(loop,40);
+  spawnId = setInterval(spawnEnemy,1000);
+  shootId = setInterval(autoShoot,400);
 }
 
-function createDiv(className, x, y) {
-  const div = document.createElement("div");
-  div.className = className;
-  div.style.left = x + "px";
-  div.style.top = y + "px";
-  game.appendChild(div);
-  return div;
+function create(cls,x,y){
+  const d=document.createElement("div");
+  d.className=cls;
+  d.style.left=x+"px";
+  d.style.top=y+"px";
+  game.appendChild(d);
+  return d;
 }
 
-function movePlayer(e) {
+function move(e){
   let x = player.offsetLeft;
-  let y = player.offsetTop;
+  if(e.key==="ArrowLeft") x-=15;
+  if(e.key==="ArrowRight") x+=15;
+  x = Math.max(0, Math.min(380,x));
 
-  if (e.key === "ArrowUp") y -= 10;
-  if (e.key === "ArrowDown") y += 10;
-  if (e.key === "ArrowLeft") x -= 10;
-  if (e.key === "ArrowRight") x += 10;
-  if (e.key === " ") shoot();
-
-  player.style.left = Math.max(0, Math.min(380, x)) + "px";
-  player.style.top = Math.max(0, Math.min(380, y)) + "px";
+  // 全員同時に移動（横だけ）
+  let diff = x - player.offsetLeft;
+  allies.forEach(a=>{
+    a.style.left = (a.offsetLeft + diff)+"px";
+  });
 }
 
-function shoot() {
-  let bullet = createDiv("bullet", player.offsetLeft + 8, player.offsetTop);
-  bullets.push(bullet);
+function autoShoot(){
+  allies.forEach(a=>{
+    let b = create("bullet", a.offsetLeft+8, a.offsetTop);
+    bullets.push(b);
+  });
 }
 
-function spawnEnemy() {
-  let x = Math.random() * 380;
-  let enemy = createDiv("enemy", x, 0);
-  enemies.push(enemy);
+function spawnEnemy(){
+  let x = Math.random()*380;
+  enemies.push(create("enemy",x,0));
 }
 
-function loop() {
-  bullets.forEach((b, bi) => {
-    b.style.top = (b.offsetTop - 10) + "px";
+function loop(){
+  bullets.forEach((b,bi)=>{
+    b.style.top = (b.offsetTop-8)+"px";
 
-    enemies.forEach((e, ei) => {
-      if (collision(b, e)) {
-        game.removeChild(b);
-        game.removeChild(e);
-        bullets.splice(bi, 1);
-        enemies.splice(ei, 1);
-        score += 10;
+    enemies.forEach((e,ei)=>{
+      if(hit(b,e)){
+        remove(b); remove(e);
+        bullets.splice(bi,1);
+        enemies.splice(ei,1);
+        score+=10;
+
+        // 一定確率で味方倍増
+        if(Math.random()<0.2){ multiplyAllies(); }
         updateUI();
       }
     });
   });
 
-  enemies.forEach((e, ei) => {
-    e.style.top = (e.offsetTop + 3) + "px";
-
-    if (collision(e, player)) {
-      hp -= 10;
-      game.removeChild(e);
-      enemies.splice(ei, 1);
+  enemies.forEach((e,ei)=>{
+    e.style.top = (e.offsetTop+3)+"px";
+    if(hit(e,player)){
+      hp-=10;
+      remove(e);
+      enemies.splice(ei,1);
       updateUI();
-
-      if (hp <= 0) endGame();
+      if(hp<=0) end();
     }
   });
 }
 
-function collision(a, b) {
-  return !(
-    a.offsetTop > b.offsetTop + 20 ||
-    a.offsetTop + 5 < b.offsetTop ||
-    a.offsetLeft > b.offsetLeft + 20 ||
-    a.offsetLeft + 5 < b.offsetLeft
-  );
+function multiplyAllies(){
+  let current = [...allies];
+  current.forEach(a=>{
+    let nx = Math.max(0, Math.min(380, a.offsetLeft + (Math.random()*40-20)));
+    let ny = a.offsetTop;
+    let newAlly = create("ally", nx, ny);
+    allies.push(newAlly);
+  });
 }
 
-function updateUI() {
-  document.getElementById("hp").textContent = hp;
-  document.getElementById("score").textContent = score;
+function hit(a,b){
+  return !(a.offsetTop > b.offsetTop+20 || a.offsetTop+8 < b.offsetTop || a.offsetLeft > b.offsetLeft+20 || a.offsetLeft+4 < b.offsetLeft);
 }
 
-function endGame() {
-  clearInterval(gameLoop);
-  alert("ゲームオーバー！ スコア: " + score);
+function remove(el){ if(el && el.parentNode) el.parentNode.removeChild(el); }
+
+function updateUI(){
+  document.getElementById("hp").textContent=hp;
+  document.getElementById("score").textContent=score;
+  document.getElementById("allyCount").textContent=allies.length;
+}
+
+function end(){
+  clearInterval(loopId);
+  clearInterval(spawnId);
+  clearInterval(shootId);
+  alert("ゲームオーバー！ スコア:"+score);
 }
 </script>
-
 </body>
 </html>
