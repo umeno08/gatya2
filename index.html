@@ -2,21 +2,21 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル（ボス・計算バー）</title>
+<title>ラストウォー風サバイバル（高速＆集結）</title>
 <style>
 body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:center; }
 #game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
 .player,.ally{ width:20px;height:20px;position:absolute; }
 .player{ background:lime; }
 .ally{ background:cyan; }
-.enemy{ width:20px;height:20px;background:red;position:absolute; color:white; font-size:10px; text-align:center; }
+.enemy{ width:20px;height:20px;background:red;position:absolute;color:white;font-size:10px;text-align:center; }
 .boss{ background:purple; }
 .bullet{ width:4px;height:8px;background:yellow;position:absolute; }
 .bar{ width:60px;height:20px;background:orange;position:absolute;color:black;font-size:12px;line-height:20px; }
 </style>
 </head>
 <body>
-<h1>ラストウォー風サバイバル（進化版）</h1>
+<h1>ラストウォー風サバイバル（高速化）</h1>
 <div id="game"></div>
 <div>HP:<span id="hp">100</span> スコア:<span id="score">0</span> 味方:<span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
@@ -34,10 +34,10 @@ function startGame(){
  allies.push(player);
  updateUI();
  document.onkeydown=move;
- loopId=setInterval(loop,40);
- spawnId=setInterval(spawnEnemy,500);
- shootId=setInterval(autoShoot,300);
- barId=setInterval(spawnBar,2000);
+ loopId=setInterval(loop,30);
+ spawnId=setInterval(spawnEnemy,300); // 敵増加
+ shootId=setInterval(autoShoot,200);
+ barId=setInterval(spawnBar,4000); // バー減少
 }
 
 function create(cls,x,y,text=""){
@@ -52,11 +52,19 @@ function create(cls,x,y,text=""){
 
 function move(e){
  let x=player.offsetLeft;
- if(e.key==="ArrowLeft")x-=15;
- if(e.key==="ArrowRight")x+=15;
+ if(e.key==="ArrowLeft")x-=20;
+ if(e.key==="ArrowRight")x+=20;
  x=Math.max(0,Math.min(380,x));
- let diff=x-player.offsetLeft;
- allies.forEach(a=>a.style.left=(a.offsetLeft+diff)+"px");
+ player.style.left=x+"px";
+
+ // 味方を周囲に集結（円形配置）
+ let radius=30;
+ allies.forEach((a,i)=>{
+ if(a===player) return;
+ let angle=(i/allies.length)*Math.PI*2;
+ a.style.left=(player.offsetLeft+Math.cos(angle)*radius)+"px";
+ a.style.top=(player.offsetTop+Math.sin(angle)*radius)+"px";
+ });
 }
 
 function autoShoot(){
@@ -66,12 +74,15 @@ function autoShoot(){
 }
 
 function spawnEnemy(){
- let isBoss = Math.random()<0.2;
- let hpVal = isBoss ? 20 : 5;
- let cls = isBoss ? "enemy boss" : "enemy";
- let e = create(cls,Math.random()*380,0,hpVal);
- e.hp = hpVal;
+ let count=4+Math.floor(score/30);
+ for(let i=0;i<count;i++){
+ let isBoss=Math.random()<0.2;
+ let hpVal=isBoss?20:5;
+ let cls=isBoss?"enemy boss":"enemy";
+ let e=create(cls,Math.random()*380,0,hpVal);
+ e.hp=hpVal;
  enemies.push(e);
+ }
 }
 
 function spawnBar(){
@@ -84,7 +95,7 @@ function spawnBar(){
 
 function loop(){
  bullets.forEach((b,bi)=>{
- b.style.top=(b.offsetTop-8)+"px";
+ b.style.top=(b.offsetTop-10)+"px";
  enemies.forEach((e,ei)=>{
  if(hit(b,e)){
  remove(b);
@@ -102,7 +113,7 @@ function loop(){
  });
 
  enemies.forEach((e,ei)=>{
- e.style.top=(e.offsetTop+3)+"px";
+ e.style.top=(e.offsetTop+6)+"px"; // 高速化
  if(hit(e,player)){
  hp-=10;
  remove(e);
@@ -128,15 +139,14 @@ function applyBar(type){
  let current=[...allies];
  current.forEach(a=>{
  for(let i=0;i<mult-1;i++){
- let nx=Math.max(0,Math.min(380,a.offsetLeft+(Math.random()*40-20)));
+ let nx=Math.random()*380;
  allies.push(create("ally",nx,a.offsetTop));
  }
  });
- } else if(type.includes("+")){
+ } else {
  let add=parseInt(type.replace("+",""));
  for(let i=0;i<add;i++){
- let nx=Math.random()*380;
- allies.push(create("ally",nx,460));
+ allies.push(create("ally",Math.random()*380,460));
  }
  }
  updateUI();
