@@ -2,107 +2,166 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ガチャゲーム</title>
-
+<title>ラストウォー風サバイバル</title>
 <style>
-body{
-    font-family: sans-serif;
-    background: linear-gradient(135deg,#222,#444);
-    color:white;
-    text-align:center;
-    padding-top:80px;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: white;
+  text-align: center;
 }
 
-h1{
-    font-size:40px;
+#game {
+  width: 400px;
+  height: 400px;
+  margin: 20px auto;
+  background: #222;
+  position: relative;
+  border: 2px solid white;
 }
 
-#result{
-    margin-top:30px;
-    font-size:28px;
-    padding:20px;
+.player {
+  width: 20px;
+  height: 20px;
+  background: lime;
+  position: absolute;
 }
 
-button{
-    font-size:22px;
-    padding:15px 40px;
-    border:none;
-    border-radius:10px;
-    background:gold;
-    cursor:pointer;
+.enemy {
+  width: 20px;
+  height: 20px;
+  background: red;
+  position: absolute;
 }
 
-button:hover{
-    background:orange;
+.bullet {
+  width: 5px;
+  height: 5px;
+  background: yellow;
+  position: absolute;
 }
 
-.star5{
-    color:gold;
-    font-weight:bold;
-    font-size:32px;
+#info {
+  margin-top: 10px;
 }
 
-.star4{
-    color:deepskyblue;
-    font-size:30px;
-}
-
-.star3{
-    color:white;
-    font-size:26px;
+button {
+  padding: 10px;
+  font-size: 16px;
+  margin-top: 10px;
 }
 </style>
 </head>
-
 <body>
 
-<h1>🎰 ガチャゲーム</h1>
-
-<button onclick="gacha()">ガチャを引く</button>
-
-<div id="result">ボタンを押してガチャを引こう！</div>
+<h1>ラストウォー風サバイバル</h1>
+<div id="game"></div>
+<div id="info">HP: <span id="hp">100</span> | スコア: <span id="score">0</span></div>
+<button onclick="startGame()">スタート</button>
 
 <script>
+const game = document.getElementById("game");
+let player, hp, score, enemies = [], bullets = [], gameLoop;
 
-const characters = [
-{ name:"伝説のドラゴン", rarity:5 },
-{ name:"神聖な騎士", rarity:5 },
+function startGame() {
+  game.innerHTML = "";
+  enemies = [];
+  bullets = [];
+  hp = 100;
+  score = 0;
+  updateUI();
 
-{ name:"エリート魔法使い", rarity:4 },
-{ name:"忍者", rarity:4 },
-{ name:"ドラゴンハンター", rarity:4 },
+  player = createDiv("player", 190, 190);
 
-{ name:"村人", rarity:3 },
-{ name:"兵士", rarity:3 },
-{ name:"見習い魔法使い", rarity:3 },
-{ name:"盗賊", rarity:3 }
-];
+  document.onkeydown = movePlayer;
 
-function gacha(){
-
-let rand = Math.random()*100;
-let rarity;
-
-if(rand < 5){
-    rarity = 5; //5%
-}else if(rand < 25){
-    rarity = 4; //20%
-}else{
-    rarity = 3; //75%
+  gameLoop = setInterval(loop, 50);
+  setInterval(spawnEnemy, 1000);
 }
 
-let pool = characters.filter(c => c.rarity === rarity);
-let result = pool[Math.floor(Math.random()*pool.length)];
-
-let stars = "★".repeat(rarity);
-
-let className = "star"+rarity;
-
-document.getElementById("result").innerHTML =
-"<div class='"+className+"'>"+stars+" "+result.name+"</div>";
-
+function createDiv(className, x, y) {
+  const div = document.createElement("div");
+  div.className = className;
+  div.style.left = x + "px";
+  div.style.top = y + "px";
+  game.appendChild(div);
+  return div;
 }
 
+function movePlayer(e) {
+  let x = player.offsetLeft;
+  let y = player.offsetTop;
+
+  if (e.key === "ArrowUp") y -= 10;
+  if (e.key === "ArrowDown") y += 10;
+  if (e.key === "ArrowLeft") x -= 10;
+  if (e.key === "ArrowRight") x += 10;
+  if (e.key === " ") shoot();
+
+  player.style.left = Math.max(0, Math.min(380, x)) + "px";
+  player.style.top = Math.max(0, Math.min(380, y)) + "px";
+}
+
+function shoot() {
+  let bullet = createDiv("bullet", player.offsetLeft + 8, player.offsetTop);
+  bullets.push(bullet);
+}
+
+function spawnEnemy() {
+  let x = Math.random() * 380;
+  let enemy = createDiv("enemy", x, 0);
+  enemies.push(enemy);
+}
+
+function loop() {
+  bullets.forEach((b, bi) => {
+    b.style.top = (b.offsetTop - 10) + "px";
+
+    enemies.forEach((e, ei) => {
+      if (collision(b, e)) {
+        game.removeChild(b);
+        game.removeChild(e);
+        bullets.splice(bi, 1);
+        enemies.splice(ei, 1);
+        score += 10;
+        updateUI();
+      }
+    });
+  });
+
+  enemies.forEach((e, ei) => {
+    e.style.top = (e.offsetTop + 3) + "px";
+
+    if (collision(e, player)) {
+      hp -= 10;
+      game.removeChild(e);
+      enemies.splice(ei, 1);
+      updateUI();
+
+      if (hp <= 0) endGame();
+    }
+  });
+}
+
+function collision(a, b) {
+  return !(
+    a.offsetTop > b.offsetTop + 20 ||
+    a.offsetTop + 5 < b.offsetTop ||
+    a.offsetLeft > b.offsetLeft + 20 ||
+    a.offsetLeft + 5 < b.offsetLeft
+  );
+}
+
+function updateUI() {
+  document.getElementById("hp").textContent = hp;
+  document.getElementById("score").textContent = score;
+}
+
+function endGame() {
+  clearInterval(gameLoop);
+  alert("ゲームオーバー！ スコア: " + score);
+}
 </script>
 
 </body>
