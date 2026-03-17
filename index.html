@@ -2,135 +2,164 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラストウォー風サバイバル（改良版）</title>
+<title>ラストウォー風サバイバル（ボス・計算バー）</title>
 <style>
-body { margin:0; font-family:Arial, sans-serif; background:#111; color:#fff; text-align:center; }
+body { margin:0; font-family:Arial; background:#111; color:#fff; text-align:center; }
 #game { width:400px; height:500px; margin:20px auto; background:#222; position:relative; border:2px solid #fff; overflow:hidden; }
-.player, .ally { width:20px; height:20px; position:absolute; }
-.player { background:lime; }
-.ally { background:cyan; }
-.enemy { width:20px; height:20px; background:red; position:absolute; }
-.bullet { width:4px; height:8px; background:yellow; position:absolute; }
-#info { margin-top:10px; }
-button { padding:10px; font-size:16px; margin-top:10px; }
+.player,.ally{ width:20px;height:20px;position:absolute; }
+.player{ background:lime; }
+.ally{ background:cyan; }
+.enemy{ width:20px;height:20px;background:red;position:absolute; color:white; font-size:10px; text-align:center; }
+.boss{ background:purple; }
+.bullet{ width:4px;height:8px;background:yellow;position:absolute; }
+.bar{ width:60px;height:20px;background:orange;position:absolute;color:black;font-size:12px;line-height:20px; }
 </style>
 </head>
 <body>
-<h1>ラストウォー風サバイバル（改良）</h1>
+<h1>ラストウォー風サバイバル（進化版）</h1>
 <div id="game"></div>
-<div id="info">HP: <span id="hp">100</span> | スコア: <span id="score">0</span> | 味方: <span id="allyCount">1</span></div>
+<div>HP:<span id="hp">100</span> スコア:<span id="score">0</span> 味方:<span id="allyCount">1</span></div>
 <button onclick="startGame()">スタート</button>
 
 <script>
-const game = document.getElementById("game");
-let player, hp, score, enemies=[], bullets=[], allies=[];
-let loopId, spawnId, shootId;
+const game=document.getElementById("game");
+let player,hp,score,enemies=[],bullets=[],allies=[],bars=[];
+let loopId,spawnId,shootId,barId;
 
 function startGame(){
-  game.innerHTML="";
-  enemies=[]; bullets=[]; allies=[];
-  hp=100; score=0;
-  player = create("player",190,460);
-  allies.push(player);
-  updateUI();
-
-  document.onkeydown = move;
-  loopId = setInterval(loop,40);
-  spawnId = setInterval(spawnEnemy,1000);
-  shootId = setInterval(autoShoot,400);
+ game.innerHTML="";
+ enemies=[];bullets=[];allies=[];bars=[];
+ hp=100;score=0;
+ player=create("player",190,460);
+ allies.push(player);
+ updateUI();
+ document.onkeydown=move;
+ loopId=setInterval(loop,40);
+ spawnId=setInterval(spawnEnemy,500);
+ shootId=setInterval(autoShoot,300);
+ barId=setInterval(spawnBar,2000);
 }
 
-function create(cls,x,y){
-  const d=document.createElement("div");
-  d.className=cls;
-  d.style.left=x+"px";
-  d.style.top=y+"px";
-  game.appendChild(d);
-  return d;
+function create(cls,x,y,text=""){
+ let d=document.createElement("div");
+ d.className=cls;
+ d.style.left=x+"px";
+ d.style.top=y+"px";
+ d.innerText=text;
+ game.appendChild(d);
+ return d;
 }
 
 function move(e){
-  let x = player.offsetLeft;
-  if(e.key==="ArrowLeft") x-=15;
-  if(e.key==="ArrowRight") x+=15;
-  x = Math.max(0, Math.min(380,x));
-
-  // 全員同時に移動（横だけ）
-  let diff = x - player.offsetLeft;
-  allies.forEach(a=>{
-    a.style.left = (a.offsetLeft + diff)+"px";
-  });
+ let x=player.offsetLeft;
+ if(e.key==="ArrowLeft")x-=15;
+ if(e.key==="ArrowRight")x+=15;
+ x=Math.max(0,Math.min(380,x));
+ let diff=x-player.offsetLeft;
+ allies.forEach(a=>a.style.left=(a.offsetLeft+diff)+"px");
 }
 
 function autoShoot(){
-  allies.forEach(a=>{
-    let b = create("bullet", a.offsetLeft+8, a.offsetTop);
-    bullets.push(b);
-  });
+ allies.forEach(a=>{
+ bullets.push(create("bullet",a.offsetLeft+8,a.offsetTop));
+ });
 }
 
 function spawnEnemy(){
-  let x = Math.random()*380;
-  enemies.push(create("enemy",x,0));
+ let isBoss = Math.random()<0.2;
+ let hpVal = isBoss ? 20 : 5;
+ let cls = isBoss ? "enemy boss" : "enemy";
+ let e = create(cls,Math.random()*380,0,hpVal);
+ e.hp = hpVal;
+ enemies.push(e);
+}
+
+function spawnBar(){
+ let types=["×2","×3","×5","+5","+10"];
+ let v=types[Math.floor(Math.random()*types.length)];
+ let bar=create("bar",Math.random()*340,0,v);
+ bar.type=v;
+ bars.push(bar);
 }
 
 function loop(){
-  bullets.forEach((b,bi)=>{
-    b.style.top = (b.offsetTop-8)+"px";
+ bullets.forEach((b,bi)=>{
+ b.style.top=(b.offsetTop-8)+"px";
+ enemies.forEach((e,ei)=>{
+ if(hit(b,e)){
+ remove(b);
+ bullets.splice(bi,1);
+ e.hp--;
+ e.innerText=e.hp;
+ if(e.hp<=0){
+ remove(e);
+ enemies.splice(ei,1);
+ score+=10;
+ }
+ updateUI();
+ }
+ });
+ });
 
-    enemies.forEach((e,ei)=>{
-      if(hit(b,e)){
-        remove(b); remove(e);
-        bullets.splice(bi,1);
-        enemies.splice(ei,1);
-        score+=10;
+ enemies.forEach((e,ei)=>{
+ e.style.top=(e.offsetTop+3)+"px";
+ if(hit(e,player)){
+ hp-=10;
+ remove(e);
+ enemies.splice(ei,1);
+ updateUI();
+ if(hp<=0)end();
+ }
+ });
 
-        // 一定確率で味方倍増
-        if(Math.random()<0.2){ multiplyAllies(); }
-        updateUI();
-      }
-    });
-  });
-
-  enemies.forEach((e,ei)=>{
-    e.style.top = (e.offsetTop+3)+"px";
-    if(hit(e,player)){
-      hp-=10;
-      remove(e);
-      enemies.splice(ei,1);
-      updateUI();
-      if(hp<=0) end();
-    }
-  });
+ bars.forEach((bar,bi)=>{
+ bar.style.top=(bar.offsetTop+3)+"px";
+ if(hit(bar,player)){
+ applyBar(bar.type);
+ remove(bar);
+ bars.splice(bi,1);
+ }
+ });
 }
 
-function multiplyAllies(){
-  let current = [...allies];
-  current.forEach(a=>{
-    let nx = Math.max(0, Math.min(380, a.offsetLeft + (Math.random()*40-20)));
-    let ny = a.offsetTop;
-    let newAlly = create("ally", nx, ny);
-    allies.push(newAlly);
-  });
+function applyBar(type){
+ if(type.includes("×")){
+ let mult=parseInt(type.replace("×",""));
+ let current=[...allies];
+ current.forEach(a=>{
+ for(let i=0;i<mult-1;i++){
+ let nx=Math.max(0,Math.min(380,a.offsetLeft+(Math.random()*40-20)));
+ allies.push(create("ally",nx,a.offsetTop));
+ }
+ });
+ } else if(type.includes("+")){
+ let add=parseInt(type.replace("+",""));
+ for(let i=0;i<add;i++){
+ let nx=Math.random()*380;
+ allies.push(create("ally",nx,460));
+ }
+ }
+ updateUI();
 }
 
 function hit(a,b){
-  return !(a.offsetTop > b.offsetTop+20 || a.offsetTop+8 < b.offsetTop || a.offsetLeft > b.offsetLeft+20 || a.offsetLeft+4 < b.offsetLeft);
+ return !(a.offsetTop>b.offsetTop+20||a.offsetTop+8<b.offsetTop||a.offsetLeft>b.offsetLeft+20||a.offsetLeft+4<b.offsetLeft);
 }
 
-function remove(el){ if(el && el.parentNode) el.parentNode.removeChild(el); }
+function remove(el){if(el&&el.parentNode)el.parentNode.removeChild(el);} 
 
 function updateUI(){
-  document.getElementById("hp").textContent=hp;
-  document.getElementById("score").textContent=score;
-  document.getElementById("allyCount").textContent=allies.length;
+ document.getElementById("hp").textContent=hp;
+ document.getElementById("score").textContent=score;
+ document.getElementById("allyCount").textContent=allies.length;
 }
 
 function end(){
-  clearInterval(loopId);
-  clearInterval(spawnId);
-  clearInterval(shootId);
-  alert("ゲームオーバー！ スコア:"+score);
+ clearInterval(loopId);
+ clearInterval(spawnId);
+ clearInterval(shootId);
+ clearInterval(barId);
+ alert("ゲームオーバー スコア:"+score);
 }
 </script>
 </body>
